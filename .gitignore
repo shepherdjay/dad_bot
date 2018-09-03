@@ -1,0 +1,6 @@
+credentials.yaml
+venv/
+.idea/
+*.sqliteidea/
+__pycache__/
+todo.sqlite
