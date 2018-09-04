@@ -3,4 +3,4 @@ venv/
 .idea/
 *.sqliteidea/
 __pycache__/
-todo.sqlite
+*.sqlite
