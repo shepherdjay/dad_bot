@@ -32,14 +32,15 @@ def get_json_from_url(url):
     return js
 
 
-def get_updates(offset=None):
+def get_updates(url, offset=None):
     """
     Used to poll the JSON file for a given telegram bot
+    :param url: The url passed to the bot
     :param offset: Used to identify the most recent updates and account for which ones have been acknowledged
     :return: returns the json of the url call
     """
     # timeout is used to enable "long polling" essentially reducing resource load
-    url = URL + "getUpdates?timeout=100"
+    url += "getUpdates?timeout=100"
     if offset:
         url += "&offset={}".format(offset)
     js = get_json_from_url(url)
@@ -61,9 +62,9 @@ def get_last_update_id(updates):
     return max(update_ids)
 
 
-def send_message(text, chat_id, reply_markup=None):
+def send_message(text, chat_id, url, reply_markup=None):
     text = urllib.parse.quote_plus(text)
-    url = URL + "sendMessage?text={}&chat_id={}&parse_mode=Markdown".format(text, chat_id)
+    url += "sendMessage?text={}&chat_id={}&parse_mode=Markdown".format(text, chat_id)
     if reply_markup:
         url += "&reply_markup={}".format(reply_markup)
     get_url(url)
@@ -79,30 +80,34 @@ def send_message(text, chat_id, reply_markup=None):
 #             print(e)
 
 
-def handle_updates(updates):
+def handle_updates(updates, url):
     for update in updates["result"]:
-        text = update["message"]["text"]
-        chat = update["message"]["chat"]["id"]
+        try:
+            text = update["message"]["text"]
+            chat = update["message"]["chat"]["id"]
+        except KeyError:
+                text = update["edited_message"]["text"]
+                chat = update["edited_message"]["chat"]["id"]
         items = db.get_items(chat)
         if text == "/done":
             keyboard = build_keyboard(items)
-            send_message("Select an item to delete", chat, keyboard)
+            send_message("Select an item to delete", chat, url, keyboard)
         elif text == "/start":
             send_message(
                 "Welcome to dad_bot the Hospital Tracker Extraordinaire",
-                chat)
+                chat, url)
         elif text.startswith("/"):
             continue
         elif text in items:
             db.delete_item(text, chat)
             items = db.get_items(chat)
             keyboard = build_keyboard(items)
-            send_message("Select an item to delete", chat, keyboard)
+            send_message("Select an item to delete", chat, url, keyboard)
         else:
             db.add_item(text, chat)
             items = db.get_items(chat)
             message = "\n".join(items)
-            send_message(message, chat)
+            send_message(message, chat, url)
 
 
 def build_keyboard(items):
@@ -111,22 +116,22 @@ def build_keyboard(items):
     return json.dumps(reply_markup)
 
 
-def main():
+def main(url):
     db.setup()
     last_update_id = None
     while True:
-        updates = get_updates(last_update_id)
+        updates = get_updates(url, offset=last_update_id)
         if len(updates["result"]) > 0:
             last_update_id = get_last_update_id(updates) + 1
-            handle_updates(updates)
+            handle_updates(updates, url)
         time.sleep(0.5)
 
 
 if __name__ == '__main__':
-    test = parse_category("Nurse Visit - Test Description")
-    print(test)
+    # test = parse_category("Nurse Visit - Test Description")
+    #     # print(test)
     with open('credentials.yml', 'r') as infile:
         creds = yaml.load(infile)
-    URL = "https://api.telegram.org/bot{}/".format(creds['api_key'])
+    telegram_api_url = "{}{}/".format(creds['url'], creds['api_key'])
     db = DBHelper()
-    main()
+    main(telegram_api_url)
