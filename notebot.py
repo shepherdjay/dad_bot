@@ -15,8 +15,8 @@ def parse_category(message):
 
 
 def set_note_categories():
-    with open('note_categories.txt', 'r') as notefile:
-        notes = notefile.read().splitlines()
+    with open('note_categories.txt', 'r') as note_file:
+        notes = note_file.read().splitlines()
     return notes
 
 
