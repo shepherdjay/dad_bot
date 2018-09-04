@@ -5,6 +5,19 @@ import requests
 import time
 import urllib
 import yaml
+import re
+
+
+def parse_category(message):
+    regex = re.compile(r"(.*?) - .*?")
+    cat = regex.search(message).group(1)
+    return cat
+
+
+def set_note_categories():
+    with open('note_categories.txt', 'r') as notefile:
+        notes = notefile.read().splitlines()
+    return notes
 
 
 def get_url(url):
@@ -110,6 +123,8 @@ def main():
 
 
 if __name__ == '__main__':
+    test = parse_category("Nurse Visit - Test Description")
+    print(test)
     with open('credentials.yml', 'r') as infile:
         creds = yaml.load(infile)
     URL = "https://api.telegram.org/bot{}/".format(creds['api_key'])
