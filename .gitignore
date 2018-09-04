@@ -1,4 +1,4 @@
-credentials.yaml
+credentials.yml
 venv/
 .idea/
 *.sqliteidea/
