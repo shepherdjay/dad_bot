@@ -2,9 +2,7 @@ import json
 import requests
 import time
 import urllib
-
-TOKEN = "642835760:AAFn5bXQ5Iy5jP3p5UiMPQbrZFEv5pghHL8"
-URL = "https://api.telegram.org/bot{}/".format(TOKEN)
+import yaml
 
 
 def get_url(url):
@@ -75,4 +73,7 @@ def main():
 
 
 if __name__ == '__main__':
+    with open('credentials.yml', 'r') as infile:
+        creds = yaml.load(infile)
+    URL = "https://api.telegram.org/bot{}/".format(creds['api_key'])
     main()
