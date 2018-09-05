@@ -25,6 +25,14 @@ def parse_category(message):
     return cat
 
 
+def find_vitals(message):
+    regex = re.compile(r"vital[s]?", re.IGNORECASE)
+    if re.match(regex, message):
+        return True
+    else:
+        return False
+
+
 def set_note_categories():
     with open('note_categories.txt', 'r') as note_file:
         notes = note_file.read().splitlines()
@@ -99,13 +107,11 @@ def handle_updates(updates, url, note_flag: NoteEvent):
             owner_id = update["message"]["chat"]["id"]
             owner_name = update["message"]["from"]["first_name"]
             datetime = time.strftime('%m-%d-%Y %H:%M', time.localtime(update["message"]["date"]))
-            print(datetime)
         except KeyError:
             text = update["edited_message"]["text"]
             owner_id = update["edited_message"]["chat"]["id"]
             owner_name = update["edited_message"]["from"]["first_name"]
             datetime = time.strftime('%m-%d-%Y %H:%M', time.localtime(update["edited_message"]["date"]))
-            print(datetime)
         items = db.get_items_by_owner_id(owner_id)
         notes = set_note_categories()
         if text == "/done":
@@ -113,7 +119,7 @@ def handle_updates(updates, url, note_flag: NoteEvent):
             send_message("Select an item to delete", owner_id, url, keyboard)
         elif text == "/help":
             help_message = "Welcome to dad bot the Hospital Tracker Extraordinaire\n" \
-                           "Type /help for this message\n" \
+                           "Type /help for this help menu (this list of commands)\n" \
                            "Type /takenote to start a new note\n" \
                            "Type /mynotes to see a list of all notes you have taken\n" \
                            "Type /lastXnotes to see the last X number of notes Ex: 'last5notes'\n"
@@ -123,10 +129,9 @@ def handle_updates(updates, url, note_flag: NoteEvent):
             send_message("Select a note category", owner_id, url, keyboard)
             # flag = "takenote"
         elif text == "/mynotes":
-            print("hit block")
             items = db.get_items_by_owner_id(owner_id)
             message = "\n".join(items)
-            send_message(message, owner_id, url, reply_markup=None)
+            send_message(message, owner_id, url)
         elif text.startswith("/"):
             continue
         elif text in items:
@@ -138,14 +143,20 @@ def handle_updates(updates, url, note_flag: NoteEvent):
         elif text in notes:
             send_message("Enter description", owner_id, url)
             note_flag.set_note_value(text)
-            print(note_flag.note_value)
         else:
-            print(note_flag.note_value)
             if note_flag.note_value is not None:
                 text = "{} - {}".format(note_flag.note_value, text)
                 db.add_item(text, owner_id, note_flag.note_value, owner_name, datetime)
+                if find_vitals(text):
+                    send_message("Enter Vitals Data", owner_id, url)
+                    note_flag.set_flag("Vitals")
                 note_flag.set_note_value(None)
-                # flag = None
+                send_message(text, "-272948016", url)
+            elif note_flag.flag == "Vitals":
+                text = "{} - {}".format(note_flag.flag, text)
+                db.add_item(text, owner_id, note_flag.note_value, owner_name, datetime)
+                note_flag.set_note_value(None)
+                send_message(text, "-272948016", url)
             # else:
             #     db.add_item(text, chat)
             #     items = db.get_items(chat)

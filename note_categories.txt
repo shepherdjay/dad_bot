@@ -9,4 +9,6 @@ PT Visit
 OT Visit
 Respiratory Visit
 Urology Visit
+BM
+Personal Care
 Other
