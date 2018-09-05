@@ -78,6 +78,7 @@ def send_message(text, chat_id, url, reply_markup=None):
     url += "sendMessage?text={}&chat_id={}&parse_mode=Markdown".format(text, chat_id)
     if reply_markup:
         url += "&reply_markup={}".format(reply_markup)
+    print(url)
     get_url(url)
 
 
@@ -95,43 +96,54 @@ def handle_updates(updates, url, note_flag: NoteEvent):
     for update in updates["result"]:
         try:
             text = update["message"]["text"]
-            chat = update["message"]["chat"]["id"]
+            owner_id = update["message"]["chat"]["id"]
+            owner_name = update["message"]["from"]["first_name"]
+            datetime = time.strftime('%m-%d-%Y %H:%M', time.localtime(update["message"]["date"]))
+            print(datetime)
         except KeyError:
-                text = update["edited_message"]["text"]
-                chat = update["edited_message"]["chat"]["id"]
-        items = db.get_items(chat)
+            text = update["edited_message"]["text"]
+            owner_id = update["edited_message"]["chat"]["id"]
+            owner_name = update["edited_message"]["from"]["first_name"]
+            datetime = time.strftime('%m-%d-%Y %H:%M', time.localtime(update["edited_message"]["date"]))
+            print(datetime)
+        items = db.get_items_by_owner_id(owner_id)
         notes = set_note_categories()
         if text == "/done":
             keyboard = build_keyboard(items)
-            send_message("Select an item to delete", chat, url, keyboard)
+            send_message("Select an item to delete", owner_id, url, keyboard)
         elif text == "/help":
             help_message = "Welcome to dad bot the Hospital Tracker Extraordinaire\n" \
                            "Type /help for this message\n" \
-                           "Type /takenote to start a new note\n"
-            send_message(help_message, chat, url, reply_markup=None)
+                           "Type /takenote to start a new note\n" \
+                           "Type /mynotes to see a list of all notes you have taken\n" \
+                           "Type /lastXnotes to see the last X number of notes Ex: 'last5notes'\n"
+            send_message(help_message, owner_id, url, reply_markup=None)
         elif text == "/takenote":
             keyboard = build_keyboard(notes)
-            send_message("Select a note category", chat, url, keyboard)
+            send_message("Select a note category", owner_id, url, keyboard)
             # flag = "takenote"
+        elif text == "/mynotes":
+            print("hit block")
+            items = db.get_items_by_owner_id(owner_id)
+            message = "\n".join(items)
+            send_message(message, owner_id, url, reply_markup=None)
         elif text.startswith("/"):
             continue
         elif text in items:
-            db.delete_item(text, chat)
-            items = db.get_items(chat)
+            # refactor for deletes later
+            db.delete_item(text, owner_id)
+            items = db.get_items_by_owner_id(owner_id)
             keyboard = build_keyboard(items)
-            send_message("Select an item to delete", chat, url, keyboard)
+            send_message("Select an item to delete", owner_id, url, keyboard)
         elif text in notes:
-            send_message("Enter description", chat, url)
+            send_message("Enter description", owner_id, url)
             note_flag.set_note_value(text)
             print(note_flag.note_value)
         else:
             print(note_flag.note_value)
             if note_flag.note_value is not None:
                 text = "{} - {}".format(note_flag.note_value, text)
-                db.add_item(text, chat, note_flag.note_value)
-                items = db.get_items(chat)
-                message = "\n".join(items)
-                send_message(message, chat, url)
+                db.add_item(text, owner_id, note_flag.note_value, owner_name, datetime)
                 note_flag.set_note_value(None)
                 # flag = None
             # else:
