@@ -8,6 +8,17 @@ import yaml
 import re
 
 
+class NoteEvent:
+    flag = None
+    note_value = None
+
+    def set_flag(self, new_flag):
+        self.flag = new_flag
+
+    def set_note_value(self, new_note_value):
+        self.note_value = new_note_value
+
+
 def parse_category(message):
     regex = re.compile(r"(.*?) - .*?")
     cat = regex.search(message).group(1)
@@ -80,7 +91,7 @@ def send_message(text, chat_id, url, reply_markup=None):
 #             print(e)
 
 
-def handle_updates(updates, url):
+def handle_updates(updates, url, object: NoteEvent):
     for update in updates["result"]:
         try:
             text = update["message"]["text"]
@@ -89,13 +100,17 @@ def handle_updates(updates, url):
                 text = update["edited_message"]["text"]
                 chat = update["edited_message"]["chat"]["id"]
         items = db.get_items(chat)
+        notes = set_note_categories()
         if text == "/done":
             keyboard = build_keyboard(items)
             send_message("Select an item to delete", chat, url, keyboard)
         elif text == "/start":
-            send_message(
-                "Welcome to dad_bot the Hospital Tracker Extraordinaire",
-                chat, url)
+            help_message = "Welcome to dad_bot the Hospital Tracker Extraordinaire"
+            send_message(help_message, chat, url)
+        elif text == "/takenote":
+            keyboard = build_keyboard(notes)
+            send_message("Select a note category", chat, url, keyboard)
+            # flag = "takenote"
         elif text.startswith("/"):
             continue
         elif text in items:
@@ -103,11 +118,25 @@ def handle_updates(updates, url):
             items = db.get_items(chat)
             keyboard = build_keyboard(items)
             send_message("Select an item to delete", chat, url, keyboard)
+        elif text in notes:
+            send_message("Enter description", chat, url)
+            object.set_note_value(text)
+            print(object.note_value)
         else:
-            db.add_item(text, chat)
-            items = db.get_items(chat)
-            message = "\n".join(items)
-            send_message(message, chat, url)
+            print(object.note_value)
+            if object.note_value is not None:
+                text = "{} - {}".format(object.note_value, text)
+                db.add_item(text, chat)
+                items = db.get_items(chat)
+                message = "\n".join(items)
+                send_message(message, chat, url)
+                object.set_note_value(None)
+                # flag = None
+            else:
+                db.add_item(text, chat)
+                items = db.get_items(chat)
+                message = "\n".join(items)
+                send_message(message, chat, url)
 
 
 def build_keyboard(items):
@@ -123,7 +152,7 @@ def main(url):
         updates = get_updates(url, offset=last_update_id)
         if len(updates["result"]) > 0:
             last_update_id = get_last_update_id(updates) + 1
-            handle_updates(updates, url)
+            handle_updates(updates, url, NoteKeeper)
         time.sleep(0.5)
 
 
@@ -134,4 +163,5 @@ if __name__ == '__main__':
         creds = yaml.load(infile)
     telegram_api_url = "{}{}/".format(creds['url'], creds['api_key'])
     db = DBHelper()
+    NoteKeeper = NoteEvent()
     main(telegram_api_url)
