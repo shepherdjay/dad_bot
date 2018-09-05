@@ -37,5 +37,15 @@ class DBHelper:
 
     def get_items_by_category(self, category):
         stmt = "SELECT description FROM items WHERE category = (?)"
-        args = (category,)
+        args = (category, )
         return [x[0] for x in self.conn.execute(stmt, args)]
+
+    def get_last_x_requested_items(self, number_of_events, datetime=False):
+        stmt = "SELECT description FROM items ORDER BY datetime DESC LIMIT (?)"
+        args = (number_of_events, )
+        if datetime:
+            stmt = "SELECT description, datetime FROM items ORDER BY datetime DESC LIMIT (?)"
+            args = (number_of_events, )
+            return self.conn.execute(stmt, args)
+        else:
+            return [x[0] for x in self.conn.execute(stmt, args)]

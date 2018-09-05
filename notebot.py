@@ -101,22 +101,26 @@ def send_message(text, chat_id, url, reply_markup=None):
 
 
 def handle_updates(updates, url, note_flag: NoteEvent):
+    last_x_notes_regex = re.compile("/last([\d]+)notes")
     for update in updates["result"]:
         try:
             text = update["message"]["text"]
             owner_id = update["message"]["chat"]["id"]
             owner_name = update["message"]["from"]["first_name"]
-            datetime = time.strftime('%m-%d-%Y %H:%M', time.localtime(update["message"]["date"]))
+            datetime = time.strftime('%m-%d-%Y %H:%M:%S', time.localtime(update["message"]["date"]))
         except KeyError:
             text = update["edited_message"]["text"]
             owner_id = update["edited_message"]["chat"]["id"]
             owner_name = update["edited_message"]["from"]["first_name"]
-            datetime = time.strftime('%m-%d-%Y %H:%M', time.localtime(update["edited_message"]["date"]))
+            datetime = time.strftime('%m-%d-%Y %H:%M:%S', time.localtime(update["edited_message"]["date"]))
         items = db.get_items_by_owner_id(owner_id)
         notes = set_note_categories()
-        if text == "/done":
-            keyboard = build_keyboard(items)
-            send_message("Select an item to delete", owner_id, url, keyboard)
+        if re.match(last_x_notes_regex, text):
+            items = db.get_last_x_requested_items(last_x_notes_regex.search(text).group(1), datetime=True)
+            message = ""
+            for desc, date in items:
+                message += "({}) {}\n".format(date, desc)
+            send_message(message, owner_id, url)
         elif text == "/help":
             help_message = "Welcome to dad bot the Hospital Tracker Extraordinaire\n" \
                            "Type /help for this help menu (this list of commands)\n" \
@@ -153,9 +157,9 @@ def handle_updates(updates, url, note_flag: NoteEvent):
                 note_flag.set_note_value(None)
                 send_message(text, "-272948016", url)
             elif note_flag.flag == "Vitals":
-                text = "{} - {}".format(note_flag.flag, text)
+                text = "{} - {}".format(datetime, note_flag.flag, text)
                 db.add_item(text, owner_id, note_flag.note_value, owner_name, datetime)
-                note_flag.set_note_value(None)
+                note_flag.flag(None)
                 send_message(text, "-272948016", url)
             # else:
             #     db.add_item(text, chat)
