@@ -91,7 +91,7 @@ def send_message(text, chat_id, url, reply_markup=None):
 #             print(e)
 
 
-def handle_updates(updates, url, object: NoteEvent):
+def handle_updates(updates, url, note_flag: NoteEvent):
     for update in updates["result"]:
         try:
             text = update["message"]["text"]
@@ -104,9 +104,11 @@ def handle_updates(updates, url, object: NoteEvent):
         if text == "/done":
             keyboard = build_keyboard(items)
             send_message("Select an item to delete", chat, url, keyboard)
-        elif text == "/start":
-            help_message = "Welcome to dad_bot the Hospital Tracker Extraordinaire"
-            send_message(help_message, chat, url)
+        elif text == "/help":
+            help_message = "Welcome to dad bot the Hospital Tracker Extraordinaire\n" \
+                           "Type /help for this message\n" \
+                           "Type /takenote to start a new note\n"
+            send_message(help_message, chat, url, reply_markup=None)
         elif text == "/takenote":
             keyboard = build_keyboard(notes)
             send_message("Select a note category", chat, url, keyboard)
@@ -120,23 +122,23 @@ def handle_updates(updates, url, object: NoteEvent):
             send_message("Select an item to delete", chat, url, keyboard)
         elif text in notes:
             send_message("Enter description", chat, url)
-            object.set_note_value(text)
-            print(object.note_value)
+            note_flag.set_note_value(text)
+            print(note_flag.note_value)
         else:
-            print(object.note_value)
-            if object.note_value is not None:
-                text = "{} - {}".format(object.note_value, text)
-                db.add_item(text, chat)
+            print(note_flag.note_value)
+            if note_flag.note_value is not None:
+                text = "{} - {}".format(note_flag.note_value, text)
+                db.add_item(text, chat, note_flag.note_value)
                 items = db.get_items(chat)
                 message = "\n".join(items)
                 send_message(message, chat, url)
-                object.set_note_value(None)
+                note_flag.set_note_value(None)
                 # flag = None
-            else:
-                db.add_item(text, chat)
-                items = db.get_items(chat)
-                message = "\n".join(items)
-                send_message(message, chat, url)
+            # else:
+            #     db.add_item(text, chat)
+            #     items = db.get_items(chat)
+            #     message = "\n".join(items)
+            #     send_message(message, chat, url)
 
 
 def build_keyboard(items):

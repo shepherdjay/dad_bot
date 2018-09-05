@@ -17,9 +17,9 @@ class DBHelper:
         self.conn.execute(catidx)
         self.conn.commit()
 
-    def add_item(self, item_text, owner):
-        stmt = "INSERT INTO items (description, owner) VALUES (?, ?)"
-        args = (item_text, owner)
+    def add_item(self, item_text, owner, category):
+        stmt = "INSERT INTO items (description, owner, category) VALUES (?, ?, ?)"
+        args = (item_text, owner, category)
         self.conn.execute(stmt, args)
         self.conn.commit()
 
@@ -32,4 +32,9 @@ class DBHelper:
     def get_items(self, owner):
         stmt = "SELECT description FROM items WHERE owner = (?)"
         args = (owner,)
+        return [x[0] for x in self.conn.execute(stmt, args)]
+
+    def get_items_by_category(self, category):
+        stmt = "SELECT description FROM items WHERE category = (?)"
+        args = (category,)
         return [x[0] for x in self.conn.execute(stmt, args)]
