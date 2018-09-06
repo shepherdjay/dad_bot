@@ -27,7 +27,7 @@ def parse_category(message):
 
 def find_vitals(message):
     regex = re.compile(r"vital[s]?", re.IGNORECASE)
-    if re.match(regex, message):
+    if re.findall(regex, message):
         return True
     else:
         return False
@@ -157,15 +157,10 @@ def handle_updates(updates, url, note_flag: NoteEvent):
                 note_flag.set_note_value(None)
                 send_message(text, "-272948016", url)
             elif note_flag.flag == "Vitals":
-                text = "{} - {}".format(datetime, note_flag.flag, text)
+                text = "{} - {}".format(note_flag.flag, text)
                 db.add_item(text, owner_id, note_flag.note_value, owner_name, datetime)
-                note_flag.flag(None)
+                note_flag.set_flag(None)
                 send_message(text, "-272948016", url)
-            # else:
-            #     db.add_item(text, chat)
-            #     items = db.get_items(chat)
-            #     message = "\n".join(items)
-            #     send_message(message, chat, url)
 
 
 def build_keyboard(items):
