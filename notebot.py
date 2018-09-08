@@ -104,7 +104,10 @@ def handle_updates(updates, url, note_flag: NoteEvent):
     last_x_notes_regex = re.compile("/last([\d]+)notes")
     for update in updates["result"]:
         try:
-            text = update["message"]["text"]
+            try:
+                text = update["message"]["caption"]
+            except KeyError:
+                text = update["message"]["text"]
             owner_id = update["message"]["chat"]["id"]
             owner_name = update["message"]["from"]["first_name"]
             datetime = time.strftime('%m-%d-%Y %H:%M:%S', time.localtime(update["message"]["date"]))
