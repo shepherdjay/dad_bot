@@ -4,6 +4,42 @@ from telegram.ext import CommandHandler, CallbackQueryHandler, ConversationHandl
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove
 import re
 import yaml
+import logging
+
+# Enable logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Note conversation states
+NOTE_TYPE, NOTE_DESCRIPTION = range(2)
+
+
+def define_conversation_handler():
+    note_conv_handler = ConversationHandler(
+        entry_points=[CallbackQueryHandler(enter_description_keyboard(), pattern='take_note_submenu_.*?')],
+        states={
+            NOTE_TYPE: []
+        }
+    )
+    return note_conv_handler
+
+
+def note_type_start(bot, update, note_category):
+    user = update.message.from_user
+    logger.info("Gender of %s: %s", user.first_name, update.message.text)
+    update.message.reply_text('I see! We have note type: {}'.format(note_category),
+                              reply_markup=ReplyKeyboardRemove())
+
+    return NOTE_TYPE
+
+
+def note_description_start(bot, update):
+    user = update.message.from_user
+    logger.info("Bio of %s: %s", user.first_name, update.message.text)
+    update.message.reply_text('Thank you! I hope we can talk again some day.')
+    update.message.reply_text('you entered {}'.format(update.message.text))
+
+    return ConversationHandler.END
 
 
 # Bot
