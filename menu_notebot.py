@@ -59,25 +59,30 @@ def search_note_submenu(bot, update):
 def main_menu_keyboard():
     keyboard = [[InlineKeyboardButton('Take a new note', callback_data='m1')],
                 [InlineKeyboardButton('Review my notes', callback_data='m2')],
-                [InlineKeyboardButton('Search all notes', callback_data='m3')]]
+                [InlineKeyboardButton('Search all notes', callback_data='m3')],
+                [InlineKeyboardButton('Medicine details', callback_data='m4')]]
     return InlineKeyboardMarkup(keyboard)
 
 
 def take_note_menu_keyboard():
     note_categories = set_note_categories()
-    m_count = 1
+    m_count = 0
     keyboard = []
-    for note in note_categories:
-        keyboard.append([InlineKeyboardButton(note, callback_data='m1_{}'.format(m_count))])
-        m_count += 1
-    keyboard.append([InlineKeyboardButton('Main menu', callback_data='main')])
+    while m_count < len(note_categories):
+        keyboard.append([InlineKeyboardButton(note_categories[m_count], callback_data='m1_{}'.format(m_count+1)),
+                         InlineKeyboardButton(note_categories[m_count+1], callback_data='m1_{}'.format(m_count+2))])
+        m_count += 2
+    # for note in note_categories:
+    #     keyboard.append([InlineKeyboardButton(note, callback_data='m1_{}'.format(m_count))])
+    #     m_count += 1
+    keyboard.append([InlineKeyboardButton('<< Main menu', callback_data='main')])
     return InlineKeyboardMarkup(keyboard)
 
 
 def review_notes_menu_keyboard():
     keyboard = [[InlineKeyboardButton('My notes', callback_data='m2_1')],
                 [InlineKeyboardButton('Edit previous note', callback_data='m2_2')],
-                [InlineKeyboardButton('Main menu', callback_data='main')]]
+                [InlineKeyboardButton('<< Main menu', callback_data='main')]]
     return InlineKeyboardMarkup(keyboard)
 
 
@@ -85,7 +90,7 @@ def search_notes_menu_keyboard():
     keyboard = [[InlineKeyboardButton('By category', callback_data='m3_1')],
                 [InlineKeyboardButton('By note taker', callback_data='m3_2')],
                 [InlineKeyboardButton('Last x number of notes', callback_data='m3_3')],
-                [InlineKeyboardButton('Main menu', callback_data='main')]]
+                [InlineKeyboardButton('<< Main menu', callback_data='main')]]
     return InlineKeyboardMarkup(keyboard)
 
 
