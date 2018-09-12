@@ -1,7 +1,8 @@
 #!/usr/bin/python3
 from telegram.ext import Updater
-from telegram.ext import CommandHandler, CallbackQueryHandler
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import CommandHandler, CallbackQueryHandler, ConversationHandler, RegexHandler
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove
+import re
 import yaml
 
 
@@ -44,7 +45,13 @@ def search_notes_menu(bot, update):
 
 # sub menus and actions
 def take_note_submenu(bot, update):
-    pass
+    query = update.callback_query
+    note_type = parse_category(query.data)
+    bot.edit_message_text(chat_id=query.message.chat_id,
+                          message_id=query.message.message_id,
+                          text=enter_description_message(),
+                          reply_markup=enter_description_keyboard())
+    # print('{} - {}'.format(note_type, update.message.text))
 
 
 def review_note_submenu(bot, update):
@@ -69,12 +76,12 @@ def take_note_menu_keyboard():
     m_count = 0
     keyboard = []
     while m_count < len(note_categories):
-        keyboard.append([InlineKeyboardButton(note_categories[m_count], callback_data='m1_{}'.format(m_count+1)),
-                         InlineKeyboardButton(note_categories[m_count+1], callback_data='m1_{}'.format(m_count+2))])
+        keyboard.append([InlineKeyboardButton(note_categories[m_count],
+                                              callback_data='take_note_submenu_{}'.format(note_categories[m_count])),
+                         InlineKeyboardButton(note_categories[m_count + 1],
+                                              callback_data='take_note_submenu_{}'.format(
+                                                  note_categories[m_count + 1]))])
         m_count += 2
-    # for note in note_categories:
-    #     keyboard.append([InlineKeyboardButton(note, callback_data='m1_{}'.format(m_count))])
-    #     m_count += 1
     keyboard.append([InlineKeyboardButton('<< Main menu', callback_data='main')])
     return InlineKeyboardMarkup(keyboard)
 
@@ -115,6 +122,10 @@ def search_notes_menu_message():
     return 'How would you like to search your notes?'
 
 
+def enter_description_message():
+    return 'Enter the note description:'
+
+
 # Helper Functions
 def set_note_categories():
     with open('note_categories.txt', 'r') as note_file:
@@ -122,19 +133,29 @@ def set_note_categories():
     return notes
 
 
-# Handlers
+def parse_category(message):
+    regex = re.compile(r"take_note_submenu_(.*?)$")
+    cat = regex.search(message).group(1)
+    return cat
 
-with open('credentials.yml', 'r') as infile:
-    creds = yaml.load(infile)
-updater = Updater("{}".format(creds['api_key']))
 
-updater.dispatcher.add_handler(CommandHandler('start', start))
-updater.dispatcher.add_handler(CallbackQueryHandler(main_menu, pattern='main'))
-updater.dispatcher.add_handler(CallbackQueryHandler(take_note_menu, pattern='m1'))
-updater.dispatcher.add_handler(CallbackQueryHandler(review_notes_menu, pattern='m2'))
-updater.dispatcher.add_handler(CallbackQueryHandler(search_notes_menu, pattern='m3'))
-updater.dispatcher.add_handler(CallbackQueryHandler(take_note_submenu, pattern='m1_1'))
-updater.dispatcher.add_handler(CallbackQueryHandler(review_note_submenu, pattern='m2_1'))
-updater.dispatcher.add_handler(CallbackQueryHandler(search_note_submenu, pattern='m3_1'))
+# Main Handlers
+def main():
+    with open('credentials.yml', 'r') as infile:
+        creds = yaml.load(infile)
+    updater = Updater("{}".format(creds['api_key']))
 
-updater.start_polling()
+    updater.dispatcher.add_handler(CommandHandler('start', start))
+    updater.dispatcher.add_handler(CallbackQueryHandler(main_menu, pattern='main'))
+    updater.dispatcher.add_handler(CallbackQueryHandler(take_note_menu, pattern='m1'))
+    updater.dispatcher.add_handler(CallbackQueryHandler(take_note_submenu, pattern='take_note_submenu_.*?'))
+    updater.dispatcher.add_handler(CallbackQueryHandler(review_notes_menu, pattern='m2'))
+    updater.dispatcher.add_handler(CallbackQueryHandler(search_notes_menu, pattern='m3'))
+    updater.dispatcher.add_handler(CallbackQueryHandler(review_note_submenu, pattern='m2_1'))
+    updater.dispatcher.add_handler(CallbackQueryHandler(search_note_submenu, pattern='m3_1'))
+
+    updater.start_polling()
+
+
+if __name__ == '__main__':
+    main()
