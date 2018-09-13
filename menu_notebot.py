@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 from telegram.ext import Updater
-from telegram.ext import CommandHandler, CallbackQueryHandler, ConversationHandler, RegexHandler
+from telegram.ext import CommandHandler, CallbackQueryHandler, ConversationHandler, RegexHandler, MessageHandler, Filters
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove
 import re
 import yaml
@@ -11,33 +11,38 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 # Note conversation states
-NOTE_TYPE, NOTE_DESCRIPTION = range(2)
+ENTER_DESCRIPTION = range(1)
 
 
 def define_conversation_handler():
     note_conv_handler = ConversationHandler(
-        entry_points=[CallbackQueryHandler(enter_description_keyboard(), pattern='take_note_submenu_.*?')],
+        entry_points=[CallbackQueryHandler(take_note_submenu, pattern='take_note_submenu_.*?', pass_user_data=True)],
         states={
-            NOTE_TYPE: []
-        }
+            ENTER_DESCRIPTION: [MessageHandler(Filters.text, record_data, pass_user_data=True)],
+        },
+        fallbacks=[RegexHandler('^Cancel$', cancel, pass_user_data=True)]
     )
     return note_conv_handler
 
 
-def note_type_start(bot, update, note_category):
-    user = update.message.from_user
-    logger.info("Gender of %s: %s", user.first_name, update.message.text)
-    update.message.reply_text('I see! We have note type: {}'.format(note_category),
-                              reply_markup=ReplyKeyboardRemove())
+def record_data(bot, update, user_data):
+    text = update.message.text
+    category = user_data['note_type']
+    user_data[category] = text
 
-    return NOTE_TYPE
+    update.message.reply_text("Success! Note: {} - {}".format(user_data['note_type'], text))
+    del user_data['note_type']
+    start(bot, update)
+
+    return ConversationHandler.END
 
 
-def note_description_start(bot, update):
-    user = update.message.from_user
-    logger.info("Bio of %s: %s", user.first_name, update.message.text)
-    update.message.reply_text('Thank you! I hope we can talk again some day.')
-    update.message.reply_text('you entered {}'.format(update.message.text))
+def cancel(bot, update, user_data):
+    if 'note_type' in user_data:
+        del user_data['note_type']
+
+    update.message.reply_text("Note cancelled. Returning to main menu.")
+    user_data.clear()
 
     return ConversationHandler.END
 
@@ -80,14 +85,14 @@ def search_notes_menu(bot, update):
 
 
 # sub menus and actions
-def take_note_submenu(bot, update):
+def take_note_submenu(bot, update, user_data):
     query = update.callback_query
     note_type = parse_category(query.data)
     bot.edit_message_text(chat_id=query.message.chat_id,
                           message_id=query.message.message_id,
-                          text=enter_description_message(),
-                          reply_markup=enter_description_keyboard())
-    # print('{} - {}'.format(note_type, update.message.text))
+                          text=enter_description_message(),)
+    user_data['note_type'] = note_type
+    return ENTER_DESCRIPTION
 
 
 def review_note_submenu(bot, update):
@@ -137,10 +142,6 @@ def search_notes_menu_keyboard():
     return InlineKeyboardMarkup(keyboard)
 
 
-def enter_description_keyboard():
-    pass
-
-
 # Messages
 def main_menu_message():
     return 'What would you like dad_bot to do?'
@@ -175,6 +176,12 @@ def parse_category(message):
     return cat
 
 
+def error(bot, update, error):
+    print('hit error')
+    """Log Errors caused by Updates."""
+    logger.warning('Update "%s" caused error "%s"', update, error)
+
+
 # Main Handlers
 def main():
     with open('credentials.yml', 'r') as infile:
@@ -184,11 +191,13 @@ def main():
     updater.dispatcher.add_handler(CommandHandler('start', start))
     updater.dispatcher.add_handler(CallbackQueryHandler(main_menu, pattern='main'))
     updater.dispatcher.add_handler(CallbackQueryHandler(take_note_menu, pattern='m1'))
-    updater.dispatcher.add_handler(CallbackQueryHandler(take_note_submenu, pattern='take_note_submenu_.*?'))
+    conv_handler = define_conversation_handler()
+    updater.dispatcher.add_handler(conv_handler)
     updater.dispatcher.add_handler(CallbackQueryHandler(review_notes_menu, pattern='m2'))
     updater.dispatcher.add_handler(CallbackQueryHandler(search_notes_menu, pattern='m3'))
     updater.dispatcher.add_handler(CallbackQueryHandler(review_note_submenu, pattern='m2_1'))
     updater.dispatcher.add_handler(CallbackQueryHandler(search_note_submenu, pattern='m3_1'))
+    updater.dispatcher.add_error_handler(error)
 
     updater.start_polling()
 
