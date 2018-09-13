@@ -5,6 +5,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMa
 import re
 import yaml
 import logging
+from dbhelper import DBHelper
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -26,11 +27,14 @@ def define_conversation_handler():
 
 
 def record_data(bot, update, user_data):
+    db = DBHelper()
     text = update.message.text
     category = user_data['note_type']
     user_data[category] = text
-
+    db_desc = "{} - {}".format(user_data['note_type'], text)
     update.message.reply_text("Success! Note: {} - {}".format(user_data['note_type'], text))
+    db.add_item(db_desc, update.message.chat.id, user_data['note_type'], update.message.chat.first_name,
+                update.message.date)
     del user_data['note_type']
     start(bot, update)
 
