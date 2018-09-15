@@ -30,9 +30,15 @@ class DBHelper:
         self.conn.execute(stmt, args)
         self.conn.commit()
 
-    def get_items_by_owner_id(self, owner_id):
+    def get_items_by_owner_id(self, owner_id, datetime=False):
         stmt = "SELECT description FROM items WHERE owner_id = (?)"
         args = (owner_id, )
+        if datetime:
+            stmt = "SELECT description, datetime FROM items WHERE owner_id = (?)"
+            args = (owner_id, )
+            return self.conn.execute(stmt, args)
+        else:
+            return [x[0] for x in self.conn.execute(stmt, args)]
         return [x[0] for x in self.conn.execute(stmt, args)]
 
     def get_items_by_category(self, category):
