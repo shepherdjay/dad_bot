@@ -45,7 +45,12 @@ def record_take_note_data(bot, update, user_data):
     category = user_data['note_type']
     user_data[category] = text
     db_desc = "{} - {}".format(user_data['note_type'], text)
-    update.message.reply_text("Success! Note: {} - {}".format(user_data['note_type'], text))
+    message = "Success! Note: {} - {}".format(user_data['note_type'], text)
+    update.message.reply_text(message)
+    bot.send_message(chat_id="-272948016",
+                     message_id=update.message.message_id,
+                     text=main_menu_message(),
+                     reply_markup=main_menu_keyboard())
     db.add_item(db_desc, update.message.chat.id, user_data['note_type'], update.message.chat.first_name,
                 update.message.date)
     del user_data['note_type']
