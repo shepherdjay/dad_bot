@@ -155,8 +155,8 @@ def last_x_notes_submenu(bot, update, user_data):
 def main_menu_keyboard():
     keyboard = [[InlineKeyboardButton('Take a new note', callback_data='m1')],
                 [InlineKeyboardButton('Review my notes', callback_data='m2')],
-                [InlineKeyboardButton('Search all notes', callback_data='m3')],
-                [InlineKeyboardButton('Medicine details', callback_data='m4')]]
+                [InlineKeyboardButton('Search all notes', callback_data='m3')]]
+                # [InlineKeyboardButton('Medicine details', callback_data='m4')]]
     return InlineKeyboardMarkup(keyboard)
 
 
@@ -177,14 +177,14 @@ def take_note_menu_keyboard():
 
 def review_notes_menu_keyboard():
     keyboard = [[InlineKeyboardButton('My notes', callback_data='m2_1')],
-                [InlineKeyboardButton('Edit previous note', callback_data='m2_2')],
+                # [InlineKeyboardButton('Edit previous note', callback_data='m2_2')],
                 [InlineKeyboardButton('<< Main menu', callback_data='main')]]
     return InlineKeyboardMarkup(keyboard)
 
 
 def search_notes_menu_keyboard():
-    keyboard = [[InlineKeyboardButton('By category', callback_data='m3_1')],
-                [InlineKeyboardButton('By note taker', callback_data='m3_2')],
+    keyboard = [# [InlineKeyboardButton('By category', callback_data='m3_1')],
+                # [InlineKeyboardButton('By note taker', callback_data='m3_2')],
                 [InlineKeyboardButton('Last x number of notes', callback_data='last_x_submenu')],
                 [InlineKeyboardButton('<< Main menu', callback_data='main')]]
     return InlineKeyboardMarkup(keyboard)
