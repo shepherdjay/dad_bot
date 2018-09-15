@@ -14,20 +14,32 @@ logger = logging.getLogger(__name__)
 
 # Note conversation states
 ENTER_DESCRIPTION = range(1)
+ENTER_NUMBER = range(1)
 
 
-def define_conversation_handler():
-    note_conv_handler = ConversationHandler(
+def define_take_note_conversation_handler():
+    conv_handler = ConversationHandler(
         entry_points=[CallbackQueryHandler(take_note_submenu, pattern='take_note_submenu_.*?', pass_user_data=True)],
         states={
-            ENTER_DESCRIPTION: [MessageHandler(Filters.text, record_data, pass_user_data=True)],
+            ENTER_DESCRIPTION: [MessageHandler(Filters.text, record_take_note_data, pass_user_data=True)],
         },
         fallbacks=[RegexHandler('^Cancel$', cancel, pass_user_data=True)]
     )
-    return note_conv_handler
+    return conv_handler
 
 
-def record_data(bot, update, user_data):
+def define_last_x_note_conversation_handler():
+    conv_handler = ConversationHandler(
+        entry_points=[CallbackQueryHandler(last_x_notes_submenu, pattern='last_x_submenu', pass_user_data=True)],
+        states={
+            ENTER_DESCRIPTION: [MessageHandler(Filters.text, send_last_x_data, pass_user_data=True)],
+        },
+        fallbacks=[RegexHandler('^Cancel$', cancel, pass_user_data=True)]
+    )
+    return conv_handler
+
+
+def record_take_note_data(bot, update, user_data):
     db = DBHelper()
     text = update.message.text
     category = user_data['note_type']
@@ -37,6 +49,20 @@ def record_data(bot, update, user_data):
     db.add_item(db_desc, update.message.chat.id, user_data['note_type'], update.message.chat.first_name,
                 update.message.date)
     del user_data['note_type']
+    time.sleep(.5)
+    start(bot, update)
+
+    return ConversationHandler.END
+
+
+def send_last_x_data(bot, update, user_data):
+    db = DBHelper()
+    print(update.message.text)
+    items = db.get_last_x_requested_items(update.message.text, datetime=True)
+    message = ""
+    for desc, date in items:
+        message += "({}) {}\n".format(date, desc)
+    update.message.reply_text(message)
     time.sleep(.5)
     start(bot, update)
 
@@ -117,8 +143,12 @@ def my_notes_submenu(bot, update):
                      reply_markup=main_menu_keyboard())
 
 
-def search_note_submenu(bot, update):
-    pass
+def last_x_notes_submenu(bot, update, user_data):
+    query = update.callback_query
+    bot.edit_message_text(chat_id=query.message.chat_id,
+                          message_id=query.message.message_id,
+                          text=enter_number_of_notes_message(), )
+    return ENTER_NUMBER
 
 
 # Keyboards
@@ -155,7 +185,7 @@ def review_notes_menu_keyboard():
 def search_notes_menu_keyboard():
     keyboard = [[InlineKeyboardButton('By category', callback_data='m3_1')],
                 [InlineKeyboardButton('By note taker', callback_data='m3_2')],
-                [InlineKeyboardButton('Last x number of notes', callback_data='m3_3')],
+                [InlineKeyboardButton('Last x number of notes', callback_data='last_x_submenu')],
                 [InlineKeyboardButton('<< Main menu', callback_data='main')]]
     return InlineKeyboardMarkup(keyboard)
 
@@ -179,6 +209,10 @@ def search_notes_menu_message():
 
 def enter_description_message():
     return 'Enter the note description:'
+
+
+def enter_number_of_notes_message():
+    return 'Enter the number of notes you would like to see:'
 
 
 # Helper Functions
@@ -209,12 +243,14 @@ def main():
     updater.dispatcher.add_handler(CommandHandler('start', start))
     updater.dispatcher.add_handler(CallbackQueryHandler(main_menu, pattern='main'))
     updater.dispatcher.add_handler(CallbackQueryHandler(take_note_menu, pattern='m1'))
-    take_note_conv_handler = define_conversation_handler()
+    take_note_conv_handler = define_take_note_conversation_handler()
     updater.dispatcher.add_handler(take_note_conv_handler)
+    last_x_notes_conv_handler = define_last_x_note_conversation_handler()
+    updater.dispatcher.add_handler(last_x_notes_conv_handler)
     updater.dispatcher.add_handler(CallbackQueryHandler(review_notes_menu, pattern='^m2$'))
     updater.dispatcher.add_handler(CallbackQueryHandler(search_notes_menu, pattern='m3'))
     updater.dispatcher.add_handler(CallbackQueryHandler(my_notes_submenu, pattern='^m2_1$'))
-    updater.dispatcher.add_handler(CallbackQueryHandler(search_note_submenu, pattern='m3_1'))
+    updater.dispatcher.add_handler(CallbackQueryHandler(last_x_notes_submenu, pattern='m3_1'))
     updater.dispatcher.add_error_handler(error)
 
     updater.start_polling()
