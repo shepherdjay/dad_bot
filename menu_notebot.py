@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 from telegram.ext import Updater
 from telegram.ext import CommandHandler, CallbackQueryHandler, ConversationHandler, RegexHandler, MessageHandler, Filters
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 import re
 import yaml
 import logging
@@ -101,8 +101,20 @@ def take_note_submenu(bot, update, user_data):
     return ENTER_DESCRIPTION
 
 
-def review_note_submenu(bot, update):
-    pass
+def my_notes_submenu(bot, update):
+    db = DBHelper()
+    query = update.callback_query
+    message = str()
+    for items, datetime in db.get_items_by_owner_id(query.message.chat_id, datetime=True):
+        message += "({}) {}\n".format(datetime, items)
+    bot.send_message(chat_id=query.message.chat_id,
+                     message_id=query.message.message_id,
+                     text=message,)
+    time.sleep(1)
+    bot.send_message(chat_id=query.message.chat_id,
+                     message_id=query.message.message_id,
+                     text=main_menu_message(),
+                     reply_markup=main_menu_keyboard())
 
 
 def search_note_submenu(bot, update):
@@ -197,11 +209,11 @@ def main():
     updater.dispatcher.add_handler(CommandHandler('start', start))
     updater.dispatcher.add_handler(CallbackQueryHandler(main_menu, pattern='main'))
     updater.dispatcher.add_handler(CallbackQueryHandler(take_note_menu, pattern='m1'))
-    conv_handler = define_conversation_handler()
-    updater.dispatcher.add_handler(conv_handler)
-    updater.dispatcher.add_handler(CallbackQueryHandler(review_notes_menu, pattern='m2'))
+    take_note_conv_handler = define_conversation_handler()
+    updater.dispatcher.add_handler(take_note_conv_handler)
+    updater.dispatcher.add_handler(CallbackQueryHandler(review_notes_menu, pattern='^m2$'))
     updater.dispatcher.add_handler(CallbackQueryHandler(search_notes_menu, pattern='m3'))
-    updater.dispatcher.add_handler(CallbackQueryHandler(review_note_submenu, pattern='m2_1'))
+    updater.dispatcher.add_handler(CallbackQueryHandler(my_notes_submenu, pattern='^m2_1$'))
     updater.dispatcher.add_handler(CallbackQueryHandler(search_note_submenu, pattern='m3_1'))
     updater.dispatcher.add_error_handler(error)
 
