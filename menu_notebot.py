@@ -6,6 +6,7 @@ import re
 import yaml
 import logging
 from dbhelper import DBHelper
+import time
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -36,6 +37,7 @@ def record_data(bot, update, user_data):
     db.add_item(db_desc, update.message.chat.id, user_data['note_type'], update.message.chat.first_name,
                 update.message.date)
     del user_data['note_type']
+    time.sleep(.5)
     start(bot, update)
 
     return ConversationHandler.END
