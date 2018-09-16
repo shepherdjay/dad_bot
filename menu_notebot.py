@@ -47,8 +47,7 @@ def record_take_note_data(bot, update, user_data):
     db_desc = "{} - {}".format(user_data['note_type'], text)
     message = "{} - {}".format(user_data['note_type'], text)
     update.message.reply_text("Success! Note: {}".format(message))
-    bot.send_message(chat_id="-272948016",
-                     text=message)
+    send_feed_messages(bot, message)
     db.add_item(db_desc, update.message.chat.id, user_data['note_type'], update.message.chat.first_name,
                 update.message.date)
     del user_data['note_type']
@@ -303,7 +302,7 @@ def error(bot, update, error):
 
 
 def send_feed_messages(bot, message):
-    db = DBHelper
+    db = DBHelper()
     chats = db.get_feed_chats()
     for chat in chats:
         bot.send_message(chat_id=chat, text=message)
