@@ -262,16 +262,24 @@ def generic_question():
 def activate_feed(bot, update):
     db = DBHelper()
     query = update.callback_query
-    db.add_feed_member(query.message.chat_id, query.message.chat.first_name)
-    message = "Success: {} added to note feed!".format(query.message.chat.first_name)
+    if query.message.chat.title:
+        db.add_feed_member(query.message.chat_id, query.message.chat.title)
+        message = 'Success: Added the group "{}" to note feed!'.format(query.message.chat.title)
+    else:
+        db.add_feed_member(query.message.chat_id, query.message.chat.first_name)
+        message = "Success: {} added to note feed!".format(query.message.chat.first_name)
     bot.send_message(chat_id=query.message.chat_id, text=message, reply_markup=main_menu_keyboard())
 
 
 def deactivate_feed(bot, update):
     db = DBHelper()
     query = update.callback_query
-    db.del_feed_member(query.message.chat_id)
-    message = "Success: {} removed from note feed!".format(query.message.chat.first_name)
+    if query.message.chat.title:
+        db.del_feed_member(query.message.chat_id)
+        message = 'Success: Removed the group "{}" from the note feed!'.format(query.message.chat.title)
+    else:
+        db.del_feed_member(query.message.chat_id)
+        message = "Success: {} removed from note feed!".format(query.message.chat.first_name)
     bot.send_message(chat_id=query.message.chat_id, text=message, reply_markup=main_menu_keyboard())
 
 
