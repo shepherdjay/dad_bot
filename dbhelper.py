@@ -6,6 +6,7 @@ class DBHelper:
         self.dbname = dbname
         self.conn = sqlite3.connect(dbname)
 
+# standard items table
     def setup(self):
         tblstmt = "CREATE TABLE IF NOT EXISTS items (description text, owner_id text, category text, owner_name text," \
                   " datetime datetime)"
@@ -55,3 +56,27 @@ class DBHelper:
             return self.conn.execute(stmt, args)
         else:
             return [x[0] for x in self.conn.execute(stmt, args)]
+
+
+# additional feeds table
+    def setup_feed_table(self):
+        tblstmt = "CREATE TABLE IF NOT EXISTS feeds (owner_id text, owner_name text)"
+        self.conn.execute(tblstmt, )
+        self.conn.commit()
+
+    def add_feed_member(self, owner_id, owner_name):
+        stmt = "INSERT INTO feeds (owner_id, owner_name) VALUES (?, ?)"
+        args = (owner_id, owner_name)
+        self.conn.execute(stmt, args)
+        self.conn.commit()
+
+    def del_feed_member(self, owner_id):
+        stmt = "DELETE FROM feeds WHERE owner_id = (?)"
+        args = (owner_id, )
+        self.conn.execute(stmt, args)
+        self.conn.commit()
+
+    def get_feed_chats(self):
+        stmt = "SELECT owner_id FROM feeds"
+        self.conn.execute(stmt)
+        return [x[0] for x in self.conn.execute(stmt)]
