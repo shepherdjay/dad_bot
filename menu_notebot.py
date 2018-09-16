@@ -83,6 +83,7 @@ def cancel(bot, update, user_data):
 
 
 # Bot
+# menus
 def start(bot, update):
     update.message.reply_text(main_menu_message(), reply_markup=main_menu_keyboard())
 
@@ -119,6 +120,22 @@ def search_notes_menu(bot, update):
                           reply_markup=search_notes_menu_keyboard())
 
 
+def settings_menu(bot, update):
+    query = update.callback_query
+    bot.edit_message_text(chat_id=query.message.chat_id,
+                          message_id=query.message.message_id,
+                          text=settings_menu_message(),
+                          reply_markup=settings_menu_keyboard())
+
+
+def feed_settings_menu(bot, update):
+    query = update.callback_query
+    bot.edit_message_text(chat_id=query.message.chat_id,
+                          message_id=query.message.message_id,
+                          text=generic_question(),
+                          reply_markup=note_feed_menu_keyboard())
+
+
 # sub menus and actions
 def take_note_submenu(bot, update, user_data):
     query = update.callback_query
@@ -150,7 +167,7 @@ def last_x_notes_submenu(bot, update, user_data):
     query = update.callback_query
     bot.edit_message_text(chat_id=query.message.chat_id,
                           message_id=query.message.message_id,
-                          text=enter_number_of_notes_message(), )
+                          text=enter_number_of_notes_message(),)
     return ENTER_NUMBER
 
 
@@ -158,8 +175,9 @@ def last_x_notes_submenu(bot, update, user_data):
 def main_menu_keyboard():
     keyboard = [[InlineKeyboardButton('Take a new note', callback_data='m1')],
                 [InlineKeyboardButton('Review my notes', callback_data='m2')],
-                [InlineKeyboardButton('Search all notes', callback_data='m3')]]
-                # [InlineKeyboardButton('Medicine details', callback_data='m4')]]
+                [InlineKeyboardButton('Search all notes', callback_data='m3')],
+                # [InlineKeyboardButton('Medicine details', callback_data='m4')],
+                [InlineKeyboardButton('Settings', callback_data='settings')]]
     return InlineKeyboardMarkup(keyboard)
 
 
@@ -186,9 +204,22 @@ def review_notes_menu_keyboard():
 
 
 def search_notes_menu_keyboard():
-    keyboard = [# [InlineKeyboardButton('By category', callback_data='m3_1')],
+    keyboard = [  # [InlineKeyboardButton('By category', callback_data='m3_1')],
                 # [InlineKeyboardButton('By note taker', callback_data='m3_2')],
                 [InlineKeyboardButton('Last x number of notes', callback_data='last_x_submenu')],
+                [InlineKeyboardButton('<< Main menu', callback_data='main')]]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def settings_menu_keyboard():
+    keyboard = [[InlineKeyboardButton('Note feed settings', callback_data='note_feed_settings')],
+                [InlineKeyboardButton('<< Main menu', callback_data='main')]]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def note_feed_menu_keyboard():
+    keyboard = [[InlineKeyboardButton('Activate note feed', callback_data='start_note_feed')],
+                [InlineKeyboardButton('Deactivate note feed', callback_data='stop_note_feed')],
                 [InlineKeyboardButton('<< Main menu', callback_data='main')]]
     return InlineKeyboardMarkup(keyboard)
 
@@ -218,6 +249,32 @@ def enter_number_of_notes_message():
     return 'Enter the number of notes you would like to see:'
 
 
+def settings_menu_message():
+    return 'What would you like to change?'
+
+
+def generic_question():
+    return 'What would you like to do?'
+
+
+# menu actions
+
+def activate_feed(bot, update):
+    db = DBHelper()
+    query = update.callback_query
+    db.add_feed_member(query.message.chat_id, query.message.chat.first_name)
+    message = "Success: {} added to note feed!".format(query.message.chat.first_name)
+    bot.send_message(chat_id=query.message.chat_id, text=message, reply_markup=main_menu_keyboard())
+
+
+def deactivate_feed(bot, update):
+    db = DBHelper()
+    query = update.callback_query
+    db.del_feed_member(query.message.chat_id)
+    message = "Success: {} removed from note feed!".format(query.message.chat.first_name)
+    bot.send_message(chat_id=query.message.chat_id, text=message, reply_markup=main_menu_keyboard())
+
+
 # Helper Functions
 def set_note_categories():
     with open('note_categories.txt', 'r') as note_file:
@@ -237,8 +294,18 @@ def error(bot, update, error):
     logger.warning('Update "%s" caused error "%s"', update, error)
 
 
+def send_feed_messages(bot, message):
+    db = DBHelper
+    chats = db.get_feed_chats()
+    for chat in chats:
+        bot.send_message(chat_id=chat, text=message)
+
+
 # Main Handlers
 def main():
+    db = DBHelper()
+    db.setup()
+    db.setup_feed_table()
     with open('credentials.yml', 'r') as infile:
         creds = yaml.load(infile)
     updater = Updater("{}".format(creds['api_key']))
@@ -246,12 +313,16 @@ def main():
     updater.dispatcher.add_handler(CommandHandler('start', start))
     updater.dispatcher.add_handler(CallbackQueryHandler(main_menu, pattern='main'))
     updater.dispatcher.add_handler(CallbackQueryHandler(take_note_menu, pattern='m1'))
+    updater.dispatcher.add_handler(CallbackQueryHandler(review_notes_menu, pattern='^m2$'))
+    updater.dispatcher.add_handler(CallbackQueryHandler(search_notes_menu, pattern='m3'))
+    updater.dispatcher.add_handler(CallbackQueryHandler(settings_menu, pattern='settings'))
+    updater.dispatcher.add_handler(CallbackQueryHandler(feed_settings_menu, pattern='note_feed_settings'))
     take_note_conv_handler = define_take_note_conversation_handler()
     updater.dispatcher.add_handler(take_note_conv_handler)
     last_x_notes_conv_handler = define_last_x_note_conversation_handler()
     updater.dispatcher.add_handler(last_x_notes_conv_handler)
-    updater.dispatcher.add_handler(CallbackQueryHandler(review_notes_menu, pattern='^m2$'))
-    updater.dispatcher.add_handler(CallbackQueryHandler(search_notes_menu, pattern='m3'))
+    updater.dispatcher.add_handler(CallbackQueryHandler(activate_feed, pattern='start_note_feed'))
+    updater.dispatcher.add_handler(CallbackQueryHandler(deactivate_feed, pattern='stop_note_feed'))
     updater.dispatcher.add_handler(CallbackQueryHandler(my_notes_submenu, pattern='^m2_1$'))
     updater.dispatcher.add_handler(CallbackQueryHandler(last_x_notes_submenu, pattern='m3_1'))
     updater.dispatcher.add_error_handler(error)
