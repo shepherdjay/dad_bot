@@ -32,7 +32,18 @@ def define_last_x_note_conversation_handler():
     conv_handler = ConversationHandler(
         entry_points=[CallbackQueryHandler(last_x_notes_submenu, pattern='last_x_submenu', pass_user_data=True)],
         states={
-            ENTER_DESCRIPTION: [MessageHandler(Filters.text, send_last_x_data, pass_user_data=True)],
+            ENTER_NUMBER: [MessageHandler(Filters.text, send_last_x_data, pass_user_data=True)],
+        },
+        fallbacks=[RegexHandler('^Cancel$', cancel, pass_user_data=True)]
+    )
+    return conv_handler
+
+
+def define_category_and_count_conversation_handler():
+    conv_handler = ConversationHandler(
+        entry_points=[CallbackQueryHandler(cat_search_count_submenu, pattern='cat_search_.*?', pass_user_data=True)],
+        states={
+            ENTER_NUMBER: [MessageHandler(Filters.text, cat_search_return_data, pass_user_data=True)],
         },
         fallbacks=[RegexHandler('^Cancel$', cancel, pass_user_data=True)]
     )
@@ -59,10 +70,9 @@ def record_take_note_data(bot, update, user_data):
 
 def send_last_x_data(bot, update, user_data):
     db = DBHelper()
-    print(update.message.text)
     items = db.get_last_x_requested_items(update.message.text, datetime=True)
     message = ""
-    for desc, date in items:
+    for desc, date in list(items)[::-1]:
         message += "({}) {}\n".format(date, desc)
     update.message.reply_text(message)
     time.sleep(.5)
@@ -99,7 +109,7 @@ def take_note_menu(bot, update):
     query = update.callback_query
     bot.edit_message_text(chat_id=query.message.chat_id,
                           message_id=query.message.message_id,
-                          text=take_note_menu_message(),
+                          text=generic_note_category_menu_message(),
                           reply_markup=take_note_menu_keyboard())
 
 
@@ -150,7 +160,9 @@ def my_notes_submenu(bot, update):
     db = DBHelper()
     query = update.callback_query
     message = str()
-    for items, datetime in db.get_items_by_owner_id(query.message.chat_id, datetime=True):
+    my_notes = db.get_items_by_owner_id(query.message.chat_id, datetime=True)
+    my_notes = list(my_notes)[::-1]
+    for items, datetime in my_notes:
         message += "({}) {}\n".format(datetime, items)
     bot.send_message(chat_id=query.message.chat_id,
                      message_id=query.message.message_id,
@@ -160,6 +172,24 @@ def my_notes_submenu(bot, update):
                      message_id=query.message.message_id,
                      text=main_menu_message(),
                      reply_markup=main_menu_keyboard())
+
+
+def cat_search_submenu(bot, update):
+    query = update.callback_query
+    bot.edit_message_text(chat_id=query.message.chat_id,
+                          message_id=query.message.message_id,
+                          text=generic_note_category_menu_message(),
+                          reply_markup=cat_search_menu_keyboard())
+
+
+def cat_search_count_submenu(bot, update, user_data):
+    query = update.callback_query
+    note_type = parse_category(query.data)
+    bot.edit_message_text(chat_id=query.message.chat_id,
+                          message_id=query.message.message_id,
+                          text=enter_number_of_notes_message())
+    user_data['note_type'] = note_type
+    return ENTER_NUMBER
 
 
 def last_x_notes_submenu(bot, update, user_data):
@@ -182,17 +212,20 @@ def main_menu_keyboard():
 
 def take_note_menu_keyboard():
     note_categories = set_note_categories()
-    m_count = 0
     keyboard = []
-    while m_count < len(note_categories):
-        keyboard.append([InlineKeyboardButton(note_categories[m_count],
-                                              callback_data='take_note_submenu_{}'.format(note_categories[m_count])),
-                         InlineKeyboardButton(note_categories[m_count + 1],
-                                              callback_data='take_note_submenu_{}'.format(
-                                                  note_categories[m_count + 1]))])
-        m_count += 2
-    keyboard.append([InlineKeyboardButton('<< Main menu', callback_data='main')])
-    return InlineKeyboardMarkup(keyboard)
+    for cat in note_categories:
+        keyboard.append(InlineKeyboardButton(cat, callback_data='take_note_submenu_{}'.format(cat)))
+    keyboard.append(InlineKeyboardButton('<< Main menu', callback_data='main'))
+    return InlineKeyboardMarkup(build_menu(keyboard))
+
+
+def cat_search_menu_keyboard():
+    note_categories = set_note_categories()
+    keyboard = []
+    for cat in note_categories:
+        keyboard.append(InlineKeyboardButton(cat, callback_data='cat_search_{}'.format(cat)))
+    keyboard.append(InlineKeyboardButton('<< Main menu', callback_data='main'))
+    return InlineKeyboardMarkup(build_menu(keyboard))
 
 
 def review_notes_menu_keyboard():
@@ -203,7 +236,7 @@ def review_notes_menu_keyboard():
 
 
 def search_notes_menu_keyboard():
-    keyboard = [  # [InlineKeyboardButton('By category', callback_data='m3_1')],
+    keyboard = [[InlineKeyboardButton('By category', callback_data='cat_search')],
                 # [InlineKeyboardButton('By note taker', callback_data='m3_2')],
                 [InlineKeyboardButton('Last x number of notes', callback_data='last_x_submenu')],
                 [InlineKeyboardButton('<< Main menu', callback_data='main')]]
@@ -228,7 +261,7 @@ def main_menu_message():
     return 'What would you like dad_bot to do?'
 
 
-def take_note_menu_message():
+def generic_note_category_menu_message():
     return 'Choose a note category:'
 
 
@@ -282,6 +315,22 @@ def deactivate_feed(bot, update):
     bot.send_message(chat_id=query.message.chat_id, text=message, reply_markup=main_menu_keyboard())
 
 
+def cat_search_return_data(bot, update, user_data):
+    db = DBHelper()
+    note_count = update.message.text
+    category = user_data['note_type']
+    notes = db.get_items_by_category(category, note_count, datetime=True)
+    message = ""
+    for desc, date in list(notes)[::-1]:
+        message += "({}) {}\n".format(date, desc)
+    del user_data['note_type']
+    update.message.reply_text(message)
+    time.sleep(.5)
+    start(bot, update)
+
+    return ConversationHandler.END
+
+
 # Helper Functions
 def set_note_categories():
     with open('note_categories.txt', 'r') as note_file:
@@ -290,7 +339,7 @@ def set_note_categories():
 
 
 def parse_category(message):
-    regex = re.compile(r"take_note_submenu_(.*?)$")
+    regex = re.compile(r".*?_([^_]+)$")
     cat = regex.search(message).group(1)
     return cat
 
@@ -308,6 +357,25 @@ def send_feed_messages(bot, message):
         bot.send_message(chat_id=chat, text=message)
 
 
+def build_menu(buttons):
+    menu = []
+    if len(buttons) % 2 == 0:
+        b_count = 0
+        while b_count < len(buttons):
+            menu.append([buttons[b_count], buttons[b_count+1]])
+            print(menu)
+            b_count += 2
+        menu = [buttons]
+    if len(buttons) % 2 == 1:
+        last_button = [buttons[-1]]
+        b_count = 0
+        while b_count < len(buttons)-1:
+            menu.append([buttons[b_count], buttons[b_count+1]])
+            b_count += 2
+        menu.append(last_button)
+    return menu
+
+
 # Main Handlers
 def main():
     db = DBHelper()
@@ -317,21 +385,29 @@ def main():
         creds = yaml.load(infile)
     updater = Updater("{}".format(creds['api_key']))
 
+    # Command handlers
     updater.dispatcher.add_handler(CommandHandler('start', start))
+
+    # Callback Query Handlers
     updater.dispatcher.add_handler(CallbackQueryHandler(main_menu, pattern='main'))
     updater.dispatcher.add_handler(CallbackQueryHandler(take_note_menu, pattern='m1'))
     updater.dispatcher.add_handler(CallbackQueryHandler(review_notes_menu, pattern='^m2$'))
     updater.dispatcher.add_handler(CallbackQueryHandler(search_notes_menu, pattern='m3'))
     updater.dispatcher.add_handler(CallbackQueryHandler(settings_menu, pattern='settings'))
     updater.dispatcher.add_handler(CallbackQueryHandler(feed_settings_menu, pattern='note_feed_settings'))
-    take_note_conv_handler = define_take_note_conversation_handler()
-    updater.dispatcher.add_handler(take_note_conv_handler)
-    last_x_notes_conv_handler = define_last_x_note_conversation_handler()
-    updater.dispatcher.add_handler(last_x_notes_conv_handler)
     updater.dispatcher.add_handler(CallbackQueryHandler(activate_feed, pattern='start_note_feed'))
     updater.dispatcher.add_handler(CallbackQueryHandler(deactivate_feed, pattern='stop_note_feed'))
     updater.dispatcher.add_handler(CallbackQueryHandler(my_notes_submenu, pattern='^m2_1$'))
     updater.dispatcher.add_handler(CallbackQueryHandler(last_x_notes_submenu, pattern='m3_1'))
+    updater.dispatcher.add_handler(CallbackQueryHandler(cat_search_submenu, pattern='^cat_search$'))
+
+    # Conversation Handlers
+    take_note_conv_handler = define_take_note_conversation_handler()
+    updater.dispatcher.add_handler(take_note_conv_handler)
+    last_x_notes_conv_handler = define_last_x_note_conversation_handler()
+    updater.dispatcher.add_handler(last_x_notes_conv_handler)
+    cat_search_conv_handler = define_category_and_count_conversation_handler()
+    updater.dispatcher.add_handler(cat_search_conv_handler)
     updater.dispatcher.add_error_handler(error)
 
     updater.start_polling()
