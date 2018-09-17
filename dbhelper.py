@@ -42,9 +42,13 @@ class DBHelper:
             return [x[0] for x in self.conn.execute(stmt, args)]
         return [x[0] for x in self.conn.execute(stmt, args)]
 
-    def get_items_by_category(self, category):
+    def get_items_by_category(self, category, datetime=False):
         stmt = "SELECT description FROM items WHERE category = (?)"
         args = (category, )
+        if datetime:
+            stmt = "SELECT description, datetime FROM items WHERE category = (?)"
+            args = (category, )
+            return self.conn.execute(stmt, args)
         return [x[0] for x in self.conn.execute(stmt, args)]
 
     def get_last_x_requested_items(self, number_of_events, datetime=False):

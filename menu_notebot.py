@@ -149,7 +149,9 @@ def my_notes_submenu(bot, update):
     db = DBHelper()
     query = update.callback_query
     message = str()
-    for items, datetime in db.get_items_by_owner_id(query.message.chat_id, datetime=True):
+    my_notes = db.get_items_by_owner_id(query.message.chat_id, datetime=True)
+    my_notes = list(my_notes)[::-1]
+    for items, datetime in my_notes:
         message += "({}) {}\n".format(datetime, items)
     bot.send_message(chat_id=query.message.chat_id,
                      message_id=query.message.message_id,
