@@ -98,7 +98,7 @@ def take_note_menu(bot, update):
     query = update.callback_query
     bot.edit_message_text(chat_id=query.message.chat_id,
                           message_id=query.message.message_id,
-                          text=take_note_menu_message(),
+                          text=generic_note_category_menu_message(),
                           reply_markup=take_note_menu_keyboard())
 
 
@@ -163,6 +163,14 @@ def my_notes_submenu(bot, update):
                      reply_markup=main_menu_keyboard())
 
 
+def cat_search_submenu(bot, update):
+    query = update.callback_query
+    bot.edit_message_text(chat_id=query.message.chat_id,
+                          message_id=query.message.message_id,
+                          text=generic_note_category_menu_message(),
+                          reply_markup=cat_search_menu_keyboard())
+
+
 def last_x_notes_submenu(bot, update, user_data):
     query = update.callback_query
     bot.edit_message_text(chat_id=query.message.chat_id,
@@ -187,13 +195,23 @@ def take_note_menu_keyboard():
     keyboard = []
     while m_count < len(note_categories):
         keyboard.append([InlineKeyboardButton(note_categories[m_count],
-                                              callback_data='take_note_submenu_{}'.format(note_categories[m_count])),
+                                              callback_data='take_note_submenu_{}'.format(
+                                                  note_categories[m_count])),
                          InlineKeyboardButton(note_categories[m_count + 1],
                                               callback_data='take_note_submenu_{}'.format(
                                                   note_categories[m_count + 1]))])
         m_count += 2
     keyboard.append([InlineKeyboardButton('<< Main menu', callback_data='main')])
     return InlineKeyboardMarkup(keyboard)
+
+
+def cat_search_menu_keyboard():
+    note_categories = set_note_categories()
+    keyboard = []
+    for cat in note_categories:
+        keyboard.append(InlineKeyboardButton(cat, callback_data='cat_search_{}'.format(cat)))
+    keyboard.append(InlineKeyboardButton('<< Main menu', callback_data='main'))
+    return InlineKeyboardMarkup(build_menu(keyboard))
 
 
 def review_notes_menu_keyboard():
@@ -204,7 +222,7 @@ def review_notes_menu_keyboard():
 
 
 def search_notes_menu_keyboard():
-    keyboard = [  # [InlineKeyboardButton('By category', callback_data='m3_1')],
+    keyboard = [[InlineKeyboardButton('By category', callback_data='cat_search')],
                 # [InlineKeyboardButton('By note taker', callback_data='m3_2')],
                 [InlineKeyboardButton('Last x number of notes', callback_data='last_x_submenu')],
                 [InlineKeyboardButton('<< Main menu', callback_data='main')]]
@@ -229,7 +247,7 @@ def main_menu_message():
     return 'What would you like dad_bot to do?'
 
 
-def take_note_menu_message():
+def generic_note_category_menu_message():
     return 'Choose a note category:'
 
 
@@ -309,6 +327,25 @@ def send_feed_messages(bot, message):
         bot.send_message(chat_id=chat, text=message)
 
 
+def build_menu(buttons):
+    menu = []
+    if len(buttons) % 2 == 0:
+        b_count = 0
+        while b_count < len(buttons):
+            menu.append([buttons[b_count], buttons[b_count+1]])
+            print(menu)
+            b_count += 2
+        menu = [buttons]
+    if len(buttons) % 2 == 1:
+        last_button = [buttons[-1]]
+        b_count = 0
+        while b_count < len(buttons)-1:
+            menu.append([buttons[b_count], buttons[b_count+1]])
+            b_count += 2
+        menu.append(last_button)
+    return menu
+
+
 # Main Handlers
 def main():
     db = DBHelper()
@@ -333,6 +370,7 @@ def main():
     updater.dispatcher.add_handler(CallbackQueryHandler(deactivate_feed, pattern='stop_note_feed'))
     updater.dispatcher.add_handler(CallbackQueryHandler(my_notes_submenu, pattern='^m2_1$'))
     updater.dispatcher.add_handler(CallbackQueryHandler(last_x_notes_submenu, pattern='m3_1'))
+    updater.dispatcher.add_handler(CallbackQueryHandler(cat_search_submenu, pattern='cat_search'))
     updater.dispatcher.add_error_handler(error)
 
     updater.start_polling()
