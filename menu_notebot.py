@@ -191,18 +191,11 @@ def main_menu_keyboard():
 
 def take_note_menu_keyboard():
     note_categories = set_note_categories()
-    m_count = 0
     keyboard = []
-    while m_count < len(note_categories):
-        keyboard.append([InlineKeyboardButton(note_categories[m_count],
-                                              callback_data='take_note_submenu_{}'.format(
-                                                  note_categories[m_count])),
-                         InlineKeyboardButton(note_categories[m_count + 1],
-                                              callback_data='take_note_submenu_{}'.format(
-                                                  note_categories[m_count + 1]))])
-        m_count += 2
-    keyboard.append([InlineKeyboardButton('<< Main menu', callback_data='main')])
-    return InlineKeyboardMarkup(keyboard)
+    for cat in note_categories:
+        keyboard.append(InlineKeyboardButton(cat, callback_data='take_note_submenu_{}'.format(cat)))
+    keyboard.append(InlineKeyboardButton('<< Main menu', callback_data='main'))
+    return InlineKeyboardMarkup(build_menu(keyboard))
 
 
 def cat_search_menu_keyboard():
