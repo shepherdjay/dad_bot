@@ -32,7 +32,18 @@ def define_last_x_note_conversation_handler():
     conv_handler = ConversationHandler(
         entry_points=[CallbackQueryHandler(last_x_notes_submenu, pattern='last_x_submenu', pass_user_data=True)],
         states={
-            ENTER_DESCRIPTION: [MessageHandler(Filters.text, send_last_x_data, pass_user_data=True)],
+            ENTER_NUMBER: [MessageHandler(Filters.text, send_last_x_data, pass_user_data=True)],
+        },
+        fallbacks=[RegexHandler('^Cancel$', cancel, pass_user_data=True)]
+    )
+    return conv_handler
+
+
+def define_category_and_count_conversation_handler():
+    conv_handler = ConversationHandler(
+        entry_points=[CallbackQueryHandler(cat_search_count_submenu, pattern='cat_search_.*?', pass_user_data=True)],
+        states={
+            ENTER_NUMBER: [MessageHandler(Filters.text, cat_search_return_data, pass_user_data=True)],
         },
         fallbacks=[RegexHandler('^Cancel$', cancel, pass_user_data=True)]
     )
@@ -171,6 +182,16 @@ def cat_search_submenu(bot, update):
                           reply_markup=cat_search_menu_keyboard())
 
 
+def cat_search_count_submenu(bot, update, user_data):
+    query = update.callback_query
+    note_type = parse_category(query.data)
+    bot.edit_message_text(chat_id=query.message.chat_id,
+                          message_id=query.message.message_id,
+                          text=enter_number_of_notes_message())
+    user_data['note_type'] = note_type
+    return ENTER_NUMBER
+
+
 def last_x_notes_submenu(bot, update, user_data):
     query = update.callback_query
     bot.edit_message_text(chat_id=query.message.chat_id,
@@ -294,6 +315,22 @@ def deactivate_feed(bot, update):
     bot.send_message(chat_id=query.message.chat_id, text=message, reply_markup=main_menu_keyboard())
 
 
+def cat_search_return_data(bot, update, user_data):
+    db = DBHelper()
+    note_count = update.message.text
+    category = user_data['note_type']
+    notes = db.get_items_by_category(category, note_count, datetime=True)
+    message = ""
+    for desc, date in list(notes)[::-1]:
+        message += "({}) {}\n".format(date, desc)
+    del user_data['note_type']
+    update.message.reply_text(message)
+    time.sleep(.5)
+    start(bot, update)
+
+    return ConversationHandler.END
+
+
 # Helper Functions
 def set_note_categories():
     with open('note_categories.txt', 'r') as note_file:
@@ -302,7 +339,7 @@ def set_note_categories():
 
 
 def parse_category(message):
-    regex = re.compile(r"take_note_submenu_(.*?)$")
+    regex = re.compile(r".*?_([^_]+)$")
     cat = regex.search(message).group(1)
     return cat
 
@@ -348,22 +385,29 @@ def main():
         creds = yaml.load(infile)
     updater = Updater("{}".format(creds['api_key']))
 
+    # Command handlers
     updater.dispatcher.add_handler(CommandHandler('start', start))
+
+    # Callback Query Handlers
     updater.dispatcher.add_handler(CallbackQueryHandler(main_menu, pattern='main'))
     updater.dispatcher.add_handler(CallbackQueryHandler(take_note_menu, pattern='m1'))
     updater.dispatcher.add_handler(CallbackQueryHandler(review_notes_menu, pattern='^m2$'))
     updater.dispatcher.add_handler(CallbackQueryHandler(search_notes_menu, pattern='m3'))
     updater.dispatcher.add_handler(CallbackQueryHandler(settings_menu, pattern='settings'))
     updater.dispatcher.add_handler(CallbackQueryHandler(feed_settings_menu, pattern='note_feed_settings'))
-    take_note_conv_handler = define_take_note_conversation_handler()
-    updater.dispatcher.add_handler(take_note_conv_handler)
-    last_x_notes_conv_handler = define_last_x_note_conversation_handler()
-    updater.dispatcher.add_handler(last_x_notes_conv_handler)
     updater.dispatcher.add_handler(CallbackQueryHandler(activate_feed, pattern='start_note_feed'))
     updater.dispatcher.add_handler(CallbackQueryHandler(deactivate_feed, pattern='stop_note_feed'))
     updater.dispatcher.add_handler(CallbackQueryHandler(my_notes_submenu, pattern='^m2_1$'))
     updater.dispatcher.add_handler(CallbackQueryHandler(last_x_notes_submenu, pattern='m3_1'))
-    updater.dispatcher.add_handler(CallbackQueryHandler(cat_search_submenu, pattern='cat_search'))
+    updater.dispatcher.add_handler(CallbackQueryHandler(cat_search_submenu, pattern='^cat_search$'))
+
+    # Conversation Handlers
+    take_note_conv_handler = define_take_note_conversation_handler()
+    updater.dispatcher.add_handler(take_note_conv_handler)
+    last_x_notes_conv_handler = define_last_x_note_conversation_handler()
+    updater.dispatcher.add_handler(last_x_notes_conv_handler)
+    cat_search_conv_handler = define_category_and_count_conversation_handler()
+    updater.dispatcher.add_handler(cat_search_conv_handler)
     updater.dispatcher.add_error_handler(error)
 
     updater.start_polling()
