@@ -59,10 +59,9 @@ def record_take_note_data(bot, update, user_data):
 
 def send_last_x_data(bot, update, user_data):
     db = DBHelper()
-    print(update.message.text)
     items = db.get_last_x_requested_items(update.message.text, datetime=True)
     message = ""
-    for desc, date in items:
+    for desc, date in list(items)[::-1]:
         message += "({}) {}\n".format(date, desc)
     update.message.reply_text(message)
     time.sleep(.5)
