@@ -1,15 +1,15 @@
-from sqlalchemy import create_engine
 from sqlalchemy import Column, String, Integer, DateTime, Index
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-import sqlite3
+
 
 class SqlAlchemyMigration(object):
     Base = declarative_base()
 
     class Items(Base):
         __tablename__ = "items"
+
         id = Column(Integer, primary_key=True)
         description = Column(String)
         owner_id = Column(String)
@@ -17,6 +17,8 @@ class SqlAlchemyMigration(object):
         category = Column(String)
         datetime = Column(DateTime)
 
+    Index('itemIndex', Items.description.asc())
+    Index('ownIndex', Items.owner_id.asc(), Items.category.asc())
 
 
 class DBHelper:
@@ -25,8 +27,10 @@ class DBHelper:
         self.alchemyengine = create_engine("sqlite:///" + dbname)
         self.alchemybase = SqlAlchemyMigration.Base
         self.conn = self.alchemyengine.raw_connection()
+        self._session = sessionmaker(bind=self.alchemyengine)
+        self.session = self._session()
 
-# standard items table
+    # standard items table
     def setup(self):
         self.alchemybase.metadata.bind = self.alchemyengine
         self.alchemybase.metadata.create_all(self.alchemyengine)
@@ -45,10 +49,10 @@ class DBHelper:
 
     def get_items_by_owner_id(self, owner_id, datetime=False):
         stmt = "SELECT description FROM items WHERE owner_id = (?)"
-        args = (owner_id, )
+        args = (owner_id,)
         if datetime:
             stmt = "SELECT description, datetime FROM items WHERE owner_id = (?)"
-            args = (owner_id, )
+            args = (owner_id,)
             return self.conn.execute(stmt, args)
         else:
             return [x[0] for x in self.conn.execute(stmt, args)]
@@ -56,25 +60,24 @@ class DBHelper:
 
     def get_items_by_category(self, category, limit, datetime=False):
         stmt = "SELECT description FROM items WHERE category = (?) ORDER BY datetime LIMIT = (?)"
-        args = (category, limit, )
+        args = (category, limit,)
         if datetime:
             stmt = "SELECT description, datetime FROM items WHERE category = (?) ORDER BY datetime DESC LIMIT (?)"
-            args = (category, limit, )
+            args = (category, limit,)
             return self.conn.execute(stmt, args)
         return [x[0] for x in self.conn.execute(stmt, args)]
 
     def get_last_x_requested_items(self, number_of_events, datetime=False):
         stmt = "SELECT description FROM items ORDER BY datetime DESC LIMIT (?)"
-        args = (number_of_events, )
+        args = (number_of_events,)
         if datetime:
             stmt = "SELECT description, datetime FROM items ORDER BY datetime DESC LIMIT (?)"
-            args = (number_of_events, )
+            args = (number_of_events,)
             return self.conn.execute(stmt, args)
         else:
             return [x[0] for x in self.conn.execute(stmt, args)]
 
-
-# additional feeds table
+    # additional feeds table
     def setup_feed_table(self):
         tblstmt = "CREATE TABLE IF NOT EXISTS feeds (owner_id text, owner_name text)"
         self.conn.execute(tblstmt, )
@@ -88,7 +91,7 @@ class DBHelper:
 
     def del_feed_member(self, owner_id):
         stmt = "DELETE FROM feeds WHERE owner_id = (?)"
-        args = (owner_id, )
+        args = (owner_id,)
         self.conn.execute(stmt, args)
         self.conn.commit()
 
