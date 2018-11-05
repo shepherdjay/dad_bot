@@ -1,23 +1,35 @@
+from sqlalchemy import create_engine
+from sqlalchemy import Column, String, Integer, DateTime, Index
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
 import sqlite3
+
+class SqlAlchemyMigration(object):
+    Base = declarative_base()
+
+    class Items(Base):
+        __tablename__ = "items"
+        id = Column(Integer, primary_key=True)
+        description = Column(String)
+        owner_id = Column(String)
+        owner_name = Column(String)
+        category = Column(String)
+        datetime = Column(DateTime)
+
 
 
 class DBHelper:
     def __init__(self, dbname="dadinfo.sqlite"):
         self.dbname = dbname
-        self.conn = sqlite3.connect(dbname)
+        self.alchemyengine = create_engine("sqlite:///" + dbname)
+        self.alchemybase = SqlAlchemyMigration.Base
+        self.conn = self.alchemyengine.raw_connection()
 
 # standard items table
     def setup(self):
-        tblstmt = "CREATE TABLE IF NOT EXISTS items (description text, owner_id text, category text, owner_name text," \
-                  " datetime datetime)"
-        itemidx = "CREATE INDEX IF NOT EXISTS itemIndex ON items (description ASC)"
-        ownidx = "CREATE INDEX IF NOT EXISTS ownIndex ON items (owner_id ASC)"
-        catidx = "CREATE INDEX IF NOT EXISTS ownIndex ON items (category ASC)"
-        self.conn.execute(tblstmt)
-        self.conn.execute(itemidx)
-        self.conn.execute(ownidx)
-        self.conn.execute(catidx)
-        self.conn.commit()
+        self.alchemybase.metadata.bind = self.alchemyengine
+        self.alchemybase.metadata.create_all(self.alchemyengine)
 
     def add_item(self, item_text, owner_id, category, owner_name, datetime):
         stmt = "INSERT INTO items (description, owner_id, category, owner_name, datetime) VALUES (?, ?, ?, ?, ?)"
